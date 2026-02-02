@@ -1,0 +1,2113 @@
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                      <meta charset="UTF-8">
+                      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                      <title>कति खर्च त? - Synced</title>
+                      <link rel="preconnect" href="https://fonts.googleapis.com">
+                      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+                      <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+                      <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+                      <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+                      
+                      <!-- Firebase SDKs -->
+                      <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+                      <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+                      
+                      <style>
+                        * {
+                          margin: 0;
+                          padding: 0;
+                          box-sizing: border-box;
+                        }
+                        
+                        :root {
+                          --bg-primary: #0a0a0a;
+                          --bg-secondary: rgba(20, 20, 20, 0.8);
+                          --bg-tertiary: rgba(255, 255, 255, 0.05);
+                          --border-color: rgba(255, 255, 255, 0.1);
+                          --text-primary: #fff;
+                          --text-secondary: rgba(255, 255, 255, 0.6);
+                          --accent-red: #ff3264;
+                          --accent-blue: #50d2ff;
+                          --accent-green: #96ff32;
+                        }
+                        
+                        [data-theme="light"] {
+                          --bg-primary: #f5f5f5;
+                          --bg-secondary: rgba(255, 255, 255, 0.9);
+                          --bg-tertiary: rgba(0, 0, 0, 0.03);
+                          --border-color: rgba(0, 0, 0, 0.1);
+                          --text-primary: #0a0a0a;
+                          --text-secondary: rgba(0, 0, 0, 0.6);
+                        }
+                        
+                        body {
+                          font-family: 'Outfit', sans-serif;
+                          background: var(--bg-primary);
+                          color: var(--text-primary);
+                          overflow-x: hidden;
+                          min-height: 100vh;
+                          transition: background 0.3s ease, color 0.3s ease;
+                        }
+                        
+                        #root {
+                          min-height: 100vh;
+                        }
+
+                        /* Sync Status Indicator */
+                        .sync-status {
+                          position: fixed;
+                          top: 20px;
+                          right: 20px;
+                          z-index: 100;
+                          display: flex;
+                          align-items: center;
+                          gap: 8px;
+                          background: var(--bg-secondary);
+                          backdrop-filter: blur(20px);
+                          border: 1px solid var(--border-color);
+                          border-radius: 20px;
+                          padding: 8px 15px;
+                          font-size: 12px;
+                          font-weight: 600;
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                        }
+
+                        .sync-status.synced {
+                          border-color: var(--accent-green);
+                          color: var(--accent-green);
+                        }
+
+                        .sync-status.syncing {
+                          border-color: var(--accent-blue);
+                          color: var(--accent-blue);
+                        }
+
+                        .sync-status.error {
+                          border-color: var(--accent-red);
+                          color: var(--accent-red);
+                        }
+
+                        .sync-dot {
+                          width: 8px;
+                          height: 8px;
+                          border-radius: 50%;
+                          background: currentColor;
+                          animation: pulse 2s ease-in-out infinite;
+                        }
+
+                        @keyframes pulse {
+                          0%, 100% { opacity: 1; }
+                          50% { opacity: 0.5; }
+                        }
+                        
+                        /* Animated background */
+                        .bg-pattern {
+                          position: fixed;
+                          top: 0;
+                          left: 0;
+                          width: 100%;
+                          height: 100%;
+                          background: 
+                            radial-gradient(circle at 20% 50%, rgba(255, 50, 100, 0.15) 0%, transparent 50%),
+                            radial-gradient(circle at 80% 80%, rgba(50, 150, 255, 0.15) 0%, transparent 50%),
+                            radial-gradient(circle at 40% 20%, rgba(150, 255, 50, 0.1) 0%, transparent 50%);
+                          z-index: 0;
+                          animation: bgMove 20s ease infinite;
+                        }
+                        
+                        [data-theme="light"] .bg-pattern {
+                          background: 
+                            radial-gradient(circle at 20% 50%, rgba(255, 50, 100, 0.08) 0%, transparent 50%),
+                            radial-gradient(circle at 80% 80%, rgba(50, 150, 255, 0.08) 0%, transparent 50%),
+                            radial-gradient(circle at 40% 20%, rgba(150, 255, 50, 0.05) 0%, transparent 50%);
+                        }
+                        
+                        @keyframes bgMove {
+                          0%, 100% { transform: translate(0, 0) scale(1); }
+                          50% { transform: translate(-20px, -20px) scale(1.05); }
+                        }
+                        
+                        /* Login Page Styles */
+                        .login-container {
+                          position: relative;
+                          z-index: 1;
+                          min-height: 100vh;
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          padding: 20px;
+                        }
+                        
+                        .login-box {
+                          background: var(--bg-secondary);
+                          backdrop-filter: blur(20px);
+                          border: 1px solid var(--border-color);
+                          border-radius: 24px;
+                          padding: 50px 40px;
+                          width: 100%;
+                          max-width: 420px;
+                          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+                          animation: slideUp 0.6s ease;
+                        }
+                        
+                        @keyframes slideUp {
+                          from { opacity: 0; transform: translateY(30px); }
+                          to { opacity: 1; transform: translateY(0); }
+                        }
+                        
+                        .login-title {
+                          font-family: 'Bebas Neue', cursive;
+                          font-size: 56px;
+                          text-align: center;
+                          margin-bottom: 40px;
+                          background: linear-gradient(135deg, #ff3264, #50d2ff, #96ff32);
+                          -webkit-background-clip: text;
+                          -webkit-text-fill-color: transparent;
+                          background-clip: text;
+                          letter-spacing: 2px;
+                        }
+                        
+                        .mode-selector {
+                          margin-bottom: 30px;
+                          display: flex;
+                          gap: 15px;
+                        }
+                        
+                        .mode-option {
+                          flex: 1;
+                          position: relative;
+                          cursor: pointer;
+                        }
+                        
+                        .mode-option input[type="radio"] {
+                          position: absolute;
+                          opacity: 0;
+                        }
+                        
+                        .mode-label {
+                          display: block;
+                          padding: 18px;
+                          background: var(--bg-tertiary);
+                          border: 2px solid var(--border-color);
+                          border-radius: 12px;
+                          text-align: center;
+                          font-weight: 600;
+                          transition: all 0.3s ease;
+                          font-size: 15px;
+                        }
+                        
+                        .mode-option input[type="radio"]:checked + .mode-label {
+                          background: rgba(80, 210, 255, 0.2);
+                          border-color: var(--accent-blue);
+                          box-shadow: 0 0 20px rgba(80, 210, 255, 0.3);
+                        }
+                        
+                        .mode-option:hover .mode-label {
+                          border-color: var(--text-secondary);
+                          transform: translateY(-2px);
+                        }
+                        
+                        .input-group {
+                          margin-bottom: 25px;
+                        }
+                        
+                        .input-label {
+                          display: block;
+                          font-size: 13px;
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                          margin-bottom: 10px;
+                          color: var(--text-secondary);
+                          font-weight: 600;
+                        }
+                        
+                        .input-field {
+                          width: 100%;
+                          padding: 16px 20px;
+                          background: var(--bg-tertiary);
+                          border: 2px solid var(--border-color);
+                          border-radius: 12px;
+                          color: var(--text-primary);
+                          font-size: 16px;
+                          font-family: 'Outfit', sans-serif;
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .input-field:focus {
+                          outline: none;
+                          border-color: var(--accent-red);
+                          background: rgba(255, 50, 100, 0.1);
+                          box-shadow: 0 0 20px rgba(255, 50, 100, 0.3);
+                        }
+                        
+                        .login-btn {
+                          width: 100%;
+                          padding: 18px;
+                          background: linear-gradient(135deg, #ff3264, #ff6464);
+                          border: none;
+                          border-radius: 12px;
+                          color: #fff;
+                          font-size: 16px;
+                          font-weight: 700;
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                          margin-top: 10px;
+                        }
+                        
+                        .login-btn:hover {
+                          transform: translateY(-2px);
+                          box-shadow: 0 10px 30px rgba(255, 50, 100, 0.4);
+                        }
+                        
+                        .login-btn:active {
+                          transform: translateY(0);
+                        }
+                        
+                        .error-msg {
+                          background: rgba(255, 50, 100, 0.2);
+                          border: 1px solid var(--accent-red);
+                          border-radius: 8px;
+                          padding: 12px;
+                          margin-top: 20px;
+                          text-align: center;
+                          font-size: 14px;
+                          color: #ff6464;
+                          animation: shake 0.3s ease;
+                        }
+                        
+                        @keyframes shake {
+                          0%, 100% { transform: translateX(0); }
+                          25% { transform: translateX(-10px); }
+                          75% { transform: translateX(10px); }
+                        }
+                        
+                        /* Theme Toggle */
+                        .theme-toggle {
+                          position: absolute;
+                          top: 20px;
+                          left: 20px;
+                          z-index: 100;
+                          display: flex;
+                          align-items: center;
+                          gap: 10px;
+                          background: var(--bg-secondary);
+                          backdrop-filter: blur(20px);
+                          border: 1px solid var(--border-color);
+                          border-radius: 30px;
+                          padding: 8px 15px;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .theme-toggle:hover {
+                          transform: scale(1.05);
+                          box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+                        }
+                        
+                        .theme-icon {
+                          font-size: 20px;
+                        }
+                        
+                        .theme-text {
+                          font-size: 12px;
+                          font-weight: 600;
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                        }
+                        
+                        /* App Container */
+                        .app-container {
+                          position: relative;
+                          z-index: 1;
+                          min-height: 100vh;
+                          padding: 20px;
+                        }
+                        
+                        .app-header {
+                          text-align: center;
+                          margin-bottom: 30px;
+                          padding-top: 60px;
+                          position: relative;
+                        }
+                        
+                        .app-title {
+                          font-family: 'Bebas Neue', cursive;
+                          font-size: 64px;
+                          background: linear-gradient(135deg, #ff3264, #50d2ff, #96ff32);
+                          -webkit-background-clip: text;
+                          -webkit-text-fill-color: transparent;
+                          background-clip: text;
+                          letter-spacing: 3px;
+                          margin-bottom: 10px;
+                          animation: titlePulse 3s ease-in-out infinite;
+                        }
+                        
+                        @keyframes titlePulse {
+                          0%, 100% { opacity: 1; }
+                          50% { opacity: 0.8; }
+                        }
+                        
+                        .header-actions {
+                          position: absolute;
+                          top: 10px;
+                          right: 10px;
+                          display: flex;
+                          gap: 10px;
+                        }
+                        
+                        .nav-btn, .logout-btn {
+                          padding: 10px 20px;
+                          background: rgba(80, 210, 255, 0.2);
+                          border: 1px solid var(--accent-blue);
+                          border-radius: 8px;
+                          color: var(--text-primary);
+                          font-size: 14px;
+                          font-weight: 600;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .logout-btn {
+                          background: rgba(255, 50, 100, 0.2);
+                          border-color: var(--accent-red);
+                        }
+                        
+                        .nav-btn:hover, .logout-btn:hover {
+                          transform: scale(1.05);
+                        }
+                        
+                        .main-content {
+                          max-width: 900px;
+                          margin: 0 auto;
+                        }
+                        
+                        /* Balance Card */
+                        .balance-card {
+                          background: var(--bg-secondary);
+                          backdrop-filter: blur(20px);
+                          border: 1px solid var(--border-color);
+                          border-radius: 24px;
+                          padding: 40px;
+                          margin-bottom: 30px;
+                          text-align: center;
+                          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+                          position: relative;
+                          overflow: hidden;
+                          min-height: 200px;
+                        }
+                        
+                        .balance-bg-image {
+                          position: absolute;
+                          top: 0;
+                          left: 0;
+                          width: 100%;
+                          height: 100%;
+                          object-fit: cover;
+                          opacity: 0.15;
+                          z-index: 0;
+                        }
+                        
+                        [data-theme="light"] .balance-bg-image {
+                          opacity: 0.15;
+                        }
+                        
+                        .balance-content {
+                          position: relative;
+                          z-index: 1;
+                        }
+                        
+                        .balance-label {
+                          font-size: 14px;
+                          text-transform: uppercase;
+                          letter-spacing: 2px;
+                          color: var(--text-secondary);
+                          margin-bottom: 10px;
+                          position: relative;
+                        }
+                        
+                        .balance-amount {
+                          font-family: 'Bebas Neue', cursive;
+                          font-size: 56px;
+                          background: linear-gradient(135deg, #ff3264, #96ff32);
+                          -webkit-background-clip: text;
+                          -webkit-text-fill-color: transparent;
+                          background-clip: text;
+                          position: relative;
+                        }
+                        
+                        /* Summary Cards */
+                        .summary-grid {
+                          display: grid;
+                          grid-template-columns: 1fr 1fr;
+                          gap: 20px;
+                          margin-bottom: 30px;
+                        }
+                        
+                        .summary-card {
+                          background: var(--bg-secondary);
+                          backdrop-filter: blur(20px);
+                          border: 1px solid var(--border-color);
+                          border-radius: 20px;
+                          padding: 30px;
+                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .summary-card:hover {
+                          transform: translateY(-5px);
+                          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+                        }
+                        
+                        .summary-card.expense {
+                          border-left: 4px solid var(--accent-red);
+                        }
+                        
+                        .summary-card.income {
+                          border-left: 4px solid var(--accent-green);
+                        }
+                        
+                        .summary-label {
+                          font-size: 12px;
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                          color: var(--text-secondary);
+                          margin-bottom: 15px;
+                        }
+                        
+                        .summary-amount {
+                          font-family: 'Bebas Neue', cursive;
+                          font-size: 36px;
+                          margin-bottom: 15px;
+                        }
+                        
+                        .summary-card.expense .summary-amount {
+                          color: var(--accent-red);
+                        }
+                        
+                        .summary-card.income .summary-amount {
+                          color: var(--accent-green);
+                        }
+                        
+                        .payment-breakdown {
+                          margin-top: 20px;
+                          padding-top: 20px;
+                          border-top: 1px solid var(--border-color);
+                        }
+                        
+                        .payment-item {
+                          display: flex;
+                          justify-content: space-between;
+                          margin-bottom: 10px;
+                          font-size: 14px;
+                        }
+                        
+                        .payment-item span:first-child {
+                          color: var(--text-secondary);
+                        }
+                        
+                        .payment-item span:last-child {
+                          color: var(--accent-red);
+                          font-weight: 700;
+                        }
+                        
+                        /* Savings Goals Section */
+                        .savings-goals-section {
+                          background: var(--bg-secondary);
+                          backdrop-filter: blur(20px);
+                          border: 1px solid var(--border-color);
+                          border-radius: 20px;
+                          padding: 35px;
+                          margin-bottom: 30px;
+                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                        }
+                        
+                        .section-title {
+                          font-family: 'Bebas Neue', cursive;
+                          font-size: 32px;
+                          letter-spacing: 2px;
+                          margin-bottom: 25px;
+                          background: linear-gradient(135deg, #ff3264, #50d2ff);
+                          -webkit-background-clip: text;
+                          -webkit-text-fill-color: transparent;
+                          background-clip: text;
+                        }
+                        
+                        .goal-input-group {
+                          display: grid;
+                          grid-template-columns: 1fr 1fr;
+                          gap: 15px;
+                          margin-bottom: 20px;
+                        }
+                        
+                        .add-goal-btn {
+                          width: 100%;
+                          padding: 15px;
+                          background: linear-gradient(135deg, #96ff32, #64ff64);
+                          border: none;
+                          border-radius: 12px;
+                          color: #0a0a0a;
+                          font-size: 14px;
+                          font-weight: 700;
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                          margin-bottom: 25px;
+                        }
+                        
+                        .add-goal-btn:hover {
+                          transform: translateY(-2px);
+                          box-shadow: 0 10px 30px rgba(150, 255, 50, 0.4);
+                        }
+                        
+                        .goals-list {
+                          display: flex;
+                          flex-direction: column;
+                          gap: 20px;
+                        }
+                        
+                        .goal-card {
+                          background: var(--bg-tertiary);
+                          border: 1px solid var(--border-color);
+                          border-radius: 12px;
+                          padding: 20px;
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .goal-card:hover {
+                          background: rgba(150, 255, 50, 0.05);
+                          border-color: var(--accent-green);
+                        }
+                        
+                        .goal-header {
+                          display: flex;
+                          justify-content: space-between;
+                          align-items: center;
+                          margin-bottom: 15px;
+                        }
+                        
+                        .goal-name {
+                          font-size: 18px;
+                          font-weight: 700;
+                          color: var(--text-primary);
+                        }
+                        
+                        .goal-target {
+                          font-size: 14px;
+                          color: var(--accent-green);
+                          font-weight: 600;
+                        }
+                        
+                        .progress-container {
+                          margin-bottom: 10px;
+                        }
+                        
+                        .progress-bar-bg {
+                          width: 100%;
+                          height: 12px;
+                          background: var(--bg-tertiary);
+                          border-radius: 6px;
+                          overflow: hidden;
+                          position: relative;
+                        }
+                        
+                        .progress-bar-fill {
+                          height: 100%;
+                          background: linear-gradient(90deg, var(--accent-green), #64ff64);
+                          border-radius: 6px;
+                          transition: width 0.5s ease;
+                        }
+                        
+                        .progress-text {
+                          font-size: 12px;
+                          color: var(--text-secondary);
+                          margin-top: 5px;
+                          text-align: right;
+                        }
+                        
+                        .goal-actions {
+                          display: flex;
+                          gap: 10px;
+                          margin-top: 15px;
+                        }
+                        
+                        .contribute-input {
+                          flex: 1;
+                          padding: 10px;
+                          background: var(--bg-secondary);
+                          border: 1px solid var(--border-color);
+                          border-radius: 8px;
+                          color: var(--text-primary);
+                          font-size: 14px;
+                        }
+                        
+                        .contribute-btn {
+                          padding: 10px 20px;
+                          background: rgba(150, 255, 50, 0.2);
+                          border: 1px solid var(--accent-green);
+                          border-radius: 8px;
+                          color: var(--text-primary);
+                          font-size: 12px;
+                          font-weight: 600;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .contribute-btn:hover {
+                          background: rgba(150, 255, 50, 0.3);
+                        }
+                        
+                        .delete-goal-btn {
+                          padding: 10px 20px;
+                          background: rgba(255, 50, 100, 0.2);
+                          border: 1px solid var(--accent-red);
+                          border-radius: 8px;
+                          color: var(--text-primary);
+                          font-size: 12px;
+                          font-weight: 600;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .delete-goal-btn:hover {
+                          background: rgba(255, 50, 100, 0.3);
+                        }
+                        
+                        /* Input Section */
+                        .input-section {
+                          background: var(--bg-secondary);
+                          backdrop-filter: blur(20px);
+                          border: 1px solid var(--border-color);
+                          border-radius: 20px;
+                          padding: 35px;
+                          margin-bottom: 30px;
+                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                        }
+                        
+                        .form-group {
+                          margin-bottom: 25px;
+                        }
+                        
+                        .form-label {
+                          display: block;
+                          font-size: 13px;
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                          margin-bottom: 12px;
+                          color: var(--text-secondary);
+                          font-weight: 600;
+                        }
+                        
+                        .text-input {
+                          width: 100%;
+                          padding: 16px 20px;
+                          background: var(--bg-tertiary);
+                          border: 2px solid var(--border-color);
+                          border-radius: 12px;
+                          color: var(--text-primary);
+                          font-size: 16px;
+                          font-family: 'Outfit', sans-serif;
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .text-input:focus {
+                          outline: none;
+                          border-color: var(--accent-blue);
+                          background: rgba(80, 210, 255, 0.1);
+                          box-shadow: 0 0 20px rgba(80, 210, 255, 0.3);
+                        }
+                        
+                        /* Checkbox Payment Method */
+                        .payment-options {
+                          display: grid;
+                          grid-template-columns: 1fr 1fr;
+                          gap: 15px;
+                        }
+                        
+                        .checkbox-card {
+                          position: relative;
+                          cursor: pointer;
+                        }
+                        
+                        .checkbox-card input[type="checkbox"] {
+                          position: absolute;
+                          opacity: 0;
+                        }
+                        
+                        .checkbox-label {
+                          display: block;
+                          padding: 18px;
+                          background: var(--bg-tertiary);
+                          border: 2px solid var(--border-color);
+                          border-radius: 12px;
+                          text-align: center;
+                          font-weight: 600;
+                          transition: all 0.3s ease;
+                          font-size: 15px;
+                        }
+                        
+                        .checkbox-card input[type="checkbox"]:checked + .checkbox-label {
+                          background: rgba(80, 210, 255, 0.2);
+                          border-color: var(--accent-blue);
+                          box-shadow: 0 0 20px rgba(80, 210, 255, 0.3);
+                        }
+                        
+                        .checkbox-card:hover .checkbox-label {
+                          border-color: var(--text-secondary);
+                          transform: translateY(-2px);
+                        }
+                        
+                        /* Sub-options for PhonePay */
+                        .sub-options {
+                          margin-top: 15px;
+                          padding: 20px;
+                          background: rgba(80, 210, 255, 0.1);
+                          border: 1px solid rgba(80, 210, 255, 0.3);
+                          border-radius: 12px;
+                          animation: slideDown 0.3s ease;
+                        }
+                        
+                        @keyframes slideDown {
+                          from { opacity: 0; transform: translateY(-10px); }
+                          to { opacity: 1; transform: translateY(0); }
+                        }
+                        
+                        .sub-options-title {
+                          font-size: 12px;
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                          margin-bottom: 12px;
+                          color: var(--accent-blue);
+                          font-weight: 600;
+                        }
+                        
+                        .radio-group {
+                          display: flex;
+                          flex-direction: column;
+                          gap: 10px;
+                        }
+                        
+                        .radio-option {
+                          display: flex;
+                          align-items: center;
+                          cursor: pointer;
+                          padding: 12px;
+                          background: var(--bg-tertiary);
+                          border-radius: 8px;
+                          transition: all 0.2s ease;
+                        }
+                        
+                        .radio-option:hover {
+                          background: rgba(255, 255, 255, 0.08);
+                        }
+                        
+                        .radio-option input[type="radio"] {
+                          margin-right: 12px;
+                          width: 18px;
+                          height: 18px;
+                          cursor: pointer;
+                          accent-color: var(--accent-blue);
+                        }
+                        
+                        .radio-option label {
+                          cursor: pointer;
+                          font-size: 14px;
+                          flex: 1;
+                        }
+                        
+                        /* Action Buttons */
+                        .action-buttons {
+                          display: grid;
+                          grid-template-columns: 1fr 1fr;
+                          gap: 15px;
+                          margin-top: 30px;
+                        }
+                        
+                        .action-btn {
+                          padding: 18px;
+                          border: none;
+                          border-radius: 12px;
+                          font-size: 16px;
+                          font-weight: 700;
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                          font-family: 'Outfit', sans-serif;
+                        }
+                        
+                        .btn-expense {
+                          background: linear-gradient(135deg, #ff3264, #ff6464);
+                          color: #fff;
+                        }
+                        
+                        .btn-expense:hover {
+                          transform: translateY(-3px);
+                          box-shadow: 0 10px 30px rgba(255, 50, 100, 0.4);
+                        }
+                        
+                        .btn-income {
+                          background: linear-gradient(135deg, #96ff32, #64ff64);
+                          color: #0a0a0a;
+                        }
+                        
+                        .btn-income:hover {
+                          transform: translateY(-3px);
+                          box-shadow: 0 10px 30px rgba(150, 255, 50, 0.4);
+                        }
+                        
+                        .action-btn:active {
+                          transform: translateY(-1px);
+                        }
+                        
+                        /* Month Filter */
+                        .month-filter {
+                          background: var(--bg-secondary);
+                          backdrop-filter: blur(20px);
+                          border: 1px solid var(--border-color);
+                          border-radius: 20px;
+                          padding: 25px;
+                          margin-bottom: 30px;
+                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                        }
+                        
+                        .filter-label {
+                          font-size: 12px;
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                          color: var(--text-secondary);
+                          margin-bottom: 15px;
+                          text-align: center;
+                        }
+                        
+                        .month-select {
+                          width: 100%;
+                          padding: 16px 20px;
+                          background: var(--bg-tertiary);
+                          border: 2px solid var(--border-color);
+                          border-radius: 12px;
+                          color: var(--text-primary);
+                          font-size: 16px;
+                          font-family: 'Outfit', sans-serif;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .month-select:focus {
+                          outline: none;
+                          border-color: var(--accent-blue);
+                          background: rgba(80, 210, 255, 0.1);
+                          box-shadow: 0 0 20px rgba(80, 210, 255, 0.3);
+                        }
+                        
+                        .month-select option {
+                          background: var(--bg-primary);
+                          color: var(--text-primary);
+                        }
+                        
+                        /* Transactions Section */
+                        .transactions-section {
+                          background: var(--bg-secondary);
+                          backdrop-filter: blur(20px);
+                          border: 1px solid var(--border-color);
+                          border-radius: 20px;
+                          padding: 35px;
+                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                        }
+                        
+                        .transactions-title {
+                          font-family: 'Bebas Neue', cursive;
+                          font-size: 32px;
+                          letter-spacing: 2px;
+                          margin-bottom: 25px;
+                          background: linear-gradient(135deg, #ff3264, #50d2ff);
+                          -webkit-background-clip: text;
+                          -webkit-text-fill-color: transparent;
+                          background-clip: text;
+                        }
+                        
+                        .transaction-list {
+                          max-height: 500px;
+                          overflow-y: auto;
+                          padding-right: 5px;
+                        }
+                        
+                        .transaction-list::-webkit-scrollbar {
+                          width: 8px;
+                        }
+                        
+                        .transaction-list::-webkit-scrollbar-track {
+                          background: var(--bg-tertiary);
+                          border-radius: 10px;
+                        }
+                        
+                        .transaction-list::-webkit-scrollbar-thumb {
+                          background: linear-gradient(135deg, #ff3264, #50d2ff);
+                          border-radius: 10px;
+                        }
+                        
+                        .transaction-item {
+                          display: flex;
+                          align-items: center;
+                          justify-content: space-between;
+                          padding: 20px;
+                          background: var(--bg-tertiary);
+                          border-radius: 12px;
+                          margin-bottom: 12px;
+                          border-left: 4px solid;
+                          transition: all 0.3s ease;
+                          animation: slideIn 0.3s ease;
+                        }
+                        
+                        @keyframes slideIn {
+                          from { opacity: 0; transform: translateX(-20px); }
+                          to { opacity: 1; transform: translateX(0); }
+                        }
+                        
+                        .transaction-item:hover {
+                          background: rgba(255, 255, 255, 0.06);
+                          transform: translateX(5px);
+                        }
+                        
+                        .transaction-item.income {
+                          border-left-color: var(--accent-green);
+                        }
+                        
+                        .transaction-item.expense {
+                          border-left-color: var(--accent-red);
+                        }
+                        
+                        .transaction-details {
+                          flex: 1;
+                        }
+                        
+                        .transaction-desc {
+                          font-size: 16px;
+                          font-weight: 600;
+                          margin-bottom: 5px;
+                        }
+                        
+                        .transaction-meta {
+                          font-size: 12px;
+                          color: var(--text-secondary);
+                        }
+                        
+                        .transaction-amount {
+                          font-family: 'Bebas Neue', cursive;
+                          font-size: 24px;
+                          margin: 0 20px;
+                        }
+                        
+                        .transaction-item.income .transaction-amount {
+                          color: var(--accent-green);
+                        }
+                        
+                        .transaction-item.expense .transaction-amount {
+                          color: var(--accent-red);
+                        }
+                        
+                        .transaction-actions {
+                          display: flex;
+                          gap: 8px;
+                        }
+                        
+                        .edit-btn, .delete-btn {
+                          padding: 8px 16px;
+                          border: 1px solid;
+                          border-radius: 8px;
+                          color: var(--text-primary);
+                          font-size: 12px;
+                          font-weight: 600;
+                          text-transform: uppercase;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .edit-btn {
+                          background: rgba(80, 210, 255, 0.2);
+                          border-color: var(--accent-blue);
+                        }
+                        
+                        .edit-btn:hover {
+                          background: rgba(80, 210, 255, 0.4);
+                          transform: scale(1.05);
+                        }
+                        
+                        .delete-btn {
+                          background: rgba(255, 50, 100, 0.2);
+                          border-color: var(--accent-red);
+                        }
+                        
+                        .delete-btn:hover {
+                          background: rgba(255, 50, 100, 0.4);
+                          transform: scale(1.05);
+                        }
+                        
+                        /* Edit Modal */
+                        .modal-overlay {
+                          position: fixed;
+                          top: 0;
+                          left: 0;
+                          right: 0;
+                          bottom: 0;
+                          background: rgba(0, 0, 0, 0.8);
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          z-index: 1000;
+                          padding: 20px;
+                          animation: fadeIn 0.3s ease;
+                        }
+                        
+                        @keyframes fadeIn {
+                          from { opacity: 0; }
+                          to { opacity: 1; }
+                        }
+                        
+                        .modal-content {
+                          background: var(--bg-secondary);
+                          border: 1px solid var(--border-color);
+                          border-radius: 20px;
+                          padding: 40px;
+                          max-width: 500px;
+                          width: 100%;
+                          animation: modalSlideUp 0.3s ease;
+                        }
+                        
+                        @keyframes modalSlideUp {
+                          from { opacity: 0; transform: translateY(30px); }
+                          to { opacity: 1; transform: translateY(0); }
+                        }
+                        
+                        .modal-title {
+                          font-family: 'Bebas Neue', cursive;
+                          font-size: 32px;
+                          letter-spacing: 2px;
+                          margin-bottom: 25px;
+                          background: linear-gradient(135deg, #ff3264, #50d2ff);
+                          -webkit-background-clip: text;
+                          -webkit-text-fill-color: transparent;
+                          background-clip: text;
+                        }
+                        
+                        .modal-buttons {
+                          display: flex;
+                          gap: 15px;
+                          margin-top: 30px;
+                        }
+                        
+                        .modal-btn {
+                          flex: 1;
+                          padding: 15px;
+                          border: none;
+                          border-radius: 12px;
+                          font-size: 14px;
+                          font-weight: 700;
+                          text-transform: uppercase;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                        }
+                        
+                        .modal-btn-save {
+                          background: linear-gradient(135deg, #96ff32, #64ff64);
+                          color: #0a0a0a;
+                        }
+                        
+                        .modal-btn-cancel {
+                          background: rgba(255, 50, 100, 0.2);
+                          border: 1px solid var(--accent-red);
+                          color: var(--text-primary);
+                        }
+                        
+                        .modal-btn:hover {
+                          transform: translateY(-2px);
+                          box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+                        }
+                        
+                        .empty-state {
+                          text-align: center;
+                          padding: 60px 20px;
+                          color: var(--text-secondary);
+                          font-size: 16px;
+                        }
+                        
+                        /* Mobile Responsive */
+                        @media (max-width: 768px) {
+                          .app-title {
+                            font-size: 48px;
+                          }
+                          
+                          .header-actions {
+                            position: static;
+                            margin-bottom: 20px;
+                            justify-content: center;
+                            flex-wrap: wrap;
+                          }
+
+                          .sync-status {
+                            top: 70px;
+                            right: 10px;
+                          }
+                          
+                          .summary-grid {
+                            grid-template-columns: 1fr;
+                          }
+                          
+                          .payment-options {
+                            grid-template-columns: 1fr;
+                          }
+                          
+                          .action-buttons {
+                            grid-template-columns: 1fr;
+                          }
+                          
+                          .balance-amount {
+                            font-size: 42px;
+                          }
+                          
+                          .transaction-item {
+                            flex-direction: column;
+                            align-items: flex-start;
+                            gap: 10px;
+                          }
+                          
+                          .transaction-amount {
+                            margin: 0;
+                          }
+                          
+                          .transaction-actions {
+                            width: 100%;
+                            justify-content: flex-end;
+                          }
+                          
+                          .goal-input-group {
+                            grid-template-columns: 1fr;
+                          }
+                          
+                          .mode-selector {
+                            flex-direction: column;
+                          }
+                        }
+                      </style>
+                    </head>
+                    <body>
+                      <div id="root"></div>
+
+                      <script type="text/babel">
+                        const { useState, useEffect, useRef } = React;
+
+                        // ========== FIREBASE CONFIGURATION ==========
+                        // TODO: Replace with your Firebase config
+                        const firebaseConfig = {
+                      apiKey: "AIzaSyC-XYZ123ABC...",
+                      authDomain: "kati-kharcha-a1b2c.firebaseapp.com",
+                      databaseURL: "https://kati-kharcha-a1b2c-default-rtdb.asia-southeast1.firebasedatabase.app",
+                      projectId: "kati-kharcha-a1b2c",
+                      storageBucket: "kati-kharcha-a1b2c.appspot.com",
+                      messagingSenderId: "123456789",
+                      appId: "1:123456789:web:abc123def456"
+                    };
+
+                        // Initialize Firebase
+                        let db;
+                        try {
+                          firebase.initializeApp(firebaseConfig);
+                          db = firebase.database();
+                          console.log('Firebase initialized successfully');
+                        } catch (error) {
+                          console.error('Firebase initialization error:', error);
+                        }
+
+                        // ====== PRECISION FIX HELPER FUNCTION ======
+                        function roundAmount(value) {
+                          return Math.round(parseFloat(value) * 100) / 100;
+                        }
+
+                        // Nepali Date Converter
+                        const nepaliMonths = [
+                          'Baisakh', 'Jestha', 'Asadh', 'Shrawan', 'Bhadra', 'Ashwin',
+                          'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'
+                        ];
+
+                        const bsMonthDays = {
+                          2082: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30]
+                        };
+
+                        function toNepaliDate(adDate) {
+                          const referenceAD = new Date(2026, 0, 27);
+                          const referenceBSYear = 2082;
+                          const referenceBSMonth = 10;
+                          const referenceBSDay = 13;
+                          
+                          const diffTime = adDate - referenceAD;
+                          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                          
+                          let bsYear = referenceBSYear;
+                          let bsMonth = referenceBSMonth;
+                          let bsDay = referenceBSDay + diffDays;
+                          
+                          const monthDaysArray = bsMonthDays[bsYear] || [31, 32, 31, 32, 31, 30, 30, 29, 30, 29, 30, 30];
+                          
+                          while (bsDay > monthDaysArray[bsMonth - 1]) {
+                            bsDay -= monthDaysArray[bsMonth - 1];
+                            bsMonth++;
+                            if (bsMonth > 12) {
+                              bsMonth = 1;
+                              bsYear++;
+                            }
+                          }
+                          
+                          while (bsDay < 1) {
+                            bsMonth--;
+                            if (bsMonth < 1) {
+                              bsMonth = 12;
+                              bsYear--;
+                            }
+                            bsDay += monthDaysArray[bsMonth - 1];
+                          }
+                          
+                          return {
+                            year: bsYear,
+                            month: bsMonth,
+                            day: bsDay,
+                            monthName: nepaliMonths[bsMonth - 1]
+                          };
+                        }
+
+                        function formatNepaliDate(date) {
+                          const nd = toNepaliDate(date);
+                          return `${nd.monthName} ${nd.day}, ${nd.year}`;
+                        }
+
+                        function formatNepaliTime(date) {
+                          let hours = date.getHours();
+                          const minutes = date.getMinutes();
+                          const ampm = hours >= 12 ? 'PM' : 'AM';
+                          hours = hours % 12 || 12;
+                          
+                          return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+                        }
+
+                        function getNepaliMonthKey(date) {
+                          const nd = toNepaliDate(date);
+                          return `${nd.year}-${nd.month}`;
+                        }
+
+                        function ThemeToggle({ theme, toggleTheme }) {
+                          return (
+                            <div className="theme-toggle" onClick={toggleTheme}>
+                              <span className="theme-icon">{theme === 'dark' ? '🌙' : '☀️'}</span>
+                              <span className="theme-text">{theme === 'dark' ? 'Dark' : 'Light'}</span>
+                            </div>
+                          );
+                        }
+
+                        function SyncStatus({ status }) {
+                          const getStatusText = () => {
+                            switch(status) {
+                              case 'synced': return '✓ Synced';
+                              case 'syncing': return '↻ Syncing...';
+                              case 'error': return '✗ Error';
+                              default: return '○ Offline';
+                            }
+                          };
+
+                          return (
+                            <div className={`sync-status ${status}`}>
+                              <span className="sync-dot"></span>
+                              <span>{getStatusText()}</span>
+                            </div>
+                          );
+                        }
+
+                        function App() {
+                          const [currentPage, setCurrentPage] = useState('login');
+                          const [selectedMode, setSelectedMode] = useState('tracker');
+                          const [isLoggedIn, setIsLoggedIn] = useState(false);
+                          const [username, setUsername] = useState('');
+                          const [pin, setPin] = useState('');
+                          const [error, setError] = useState('');
+                          const [theme, setTheme] = useState('dark');
+                          const [syncStatus, setSyncStatus] = useState('offline');
+                          
+                          const [transactions, setTransactions] = useState([]);
+                          const [description, setDescription] = useState('');
+                          const [amount, setAmount] = useState('');
+                          const [paymentMethod, setPaymentMethod] = useState({
+                            phonePay: false,
+                            cash: false
+                          });
+                          const [phonePayOption, setPhonePayOption] = useState('Nabil');
+                          const [selectedMonth, setSelectedMonth] = useState('all');
+                          
+                          const [editingTransaction, setEditingTransaction] = useState(null);
+                          const [editDescription, setEditDescription] = useState('');
+                          const [editAmount, setEditAmount] = useState('');
+                          
+                          const [savingsGoals, setSavingsGoals] = useState([]);
+                          const [newGoalName, setNewGoalName] = useState('');
+                          const [newGoalTarget, setNewGoalTarget] = useState('');
+                          const [contributeAmounts, setContributeAmounts] = useState({});
+
+                          const transactionsRef = useRef(null);
+                          const goalsRef = useRef(null);
+
+                          // Initialize Firebase listeners
+                          useEffect(() => {
+                            if (isLoggedIn && db) {
+                              setSyncStatus('syncing');
+                              
+                              // Listen to transactions
+                              transactionsRef.current = db.ref('transactions');
+                              transactionsRef.current.on('value', (snapshot) => {
+                                const data = snapshot.val();
+                                if (data) {
+                                  const transactionsArray = Object.keys(data).map(key => ({
+                                    ...data[key],
+                                    id: key
+                                  }));
+                                  setTransactions(transactionsArray.sort((a, b) => b.timestamp - a.timestamp));
+                                  setSyncStatus('synced');
+                                } else {
+                                  setTransactions([]);
+                                  setSyncStatus('synced');
+                                }
+                              }, (error) => {
+                                console.error('Firebase read error:', error);
+                                setSyncStatus('error');
+                              });
+
+                              // Listen to savings goals
+                              goalsRef.current = db.ref('savingsGoals');
+                              goalsRef.current.on('value', (snapshot) => {
+                                const data = snapshot.val();
+                                if (data) {
+                                  const goalsArray = Object.keys(data).map(key => ({
+                                    ...data[key],
+                                    id: key
+                                  }));
+                                  setSavingsGoals(goalsArray);
+                                } else {
+                                  setSavingsGoals([]);
+                                }
+                              });
+
+                              return () => {
+                                if (transactionsRef.current) transactionsRef.current.off();
+                                if (goalsRef.current) goalsRef.current.off();
+                              };
+                            }
+                          }, [isLoggedIn]);
+
+                          useEffect(() => {
+                            const loggedIn = localStorage.getItem('isLoggedIn');
+                            const savedMode = localStorage.getItem('selectedMode');
+                            const savedTheme = localStorage.getItem('theme');
+                            
+                            if (loggedIn === 'true') {
+                              setIsLoggedIn(true);
+                              setCurrentPage(savedMode || 'tracker');
+                              setSelectedMode(savedMode || 'tracker');
+                            }
+                            
+                            if (savedTheme) {
+                              setTheme(savedTheme);
+                              document.documentElement.setAttribute('data-theme', savedTheme);
+                            }
+                          }, []);
+
+                          const toggleTheme = () => {
+                            const newTheme = theme === 'dark' ? 'light' : 'dark';
+                            setTheme(newTheme);
+                            localStorage.setItem('theme', newTheme);
+                            document.documentElement.setAttribute('data-theme', newTheme);
+                          };
+
+                          const handleLogin = (e) => {
+                            e.preventDefault();
+                            if (username === '12345666' && pin === '7536') {
+                              setIsLoggedIn(true);
+                              localStorage.setItem('isLoggedIn', 'true');
+                              localStorage.setItem('selectedMode', selectedMode);
+                              setCurrentPage(selectedMode);
+                              setError('');
+                            } else {
+                              setError('Invalid username or PIN!');
+                            }
+                          };
+
+                          const handleLogout = () => {
+                            setIsLoggedIn(false);
+                            localStorage.removeItem('isLoggedIn');
+                            setCurrentPage('login');
+                            setUsername('');
+                            setPin('');
+                            setSyncStatus('offline');
+                          };
+
+                          const switchPage = (page) => {
+                            setCurrentPage(page);
+                            localStorage.setItem('selectedMode', page);
+                          };
+
+                          const handlePaymentMethodChange = (method) => {
+                            if (method === 'phonePay') {
+                              setPaymentMethod({ phonePay: !paymentMethod.phonePay, cash: false });
+                            } else {
+                              setPaymentMethod({ cash: !paymentMethod.cash, phonePay: false });
+                            }
+                          };
+
+                          const addTransaction = (type) => {
+                            if (!description || !amount || amount <= 0) {
+                              alert('Please enter valid description and amount!');
+                              return;
+                            }
+
+                            if (!paymentMethod.phonePay && !paymentMethod.cash) {
+                              alert('Please select a payment method!');
+                              return;
+                            }
+
+                            setSyncStatus('syncing');
+
+                            const now = new Date();
+                            const nepaliDate = formatNepaliDate(now);
+                            const nepaliTime = formatNepaliTime(now);
+                            const monthKey = getNepaliMonthKey(now);
+
+                            let paymentMethodStr = '';
+                            if (paymentMethod.phonePay) {
+                              paymentMethodStr = `PhonePay (${phonePayOption})`;
+                            } else if (paymentMethod.cash) {
+                              paymentMethodStr = 'Cash';
+                            }
+
+                            const amountValue = roundAmount(amount);
+
+                            const transaction = {
+                              type,
+                              description,
+                              amount: amountValue,
+                              paymentMethod: paymentMethodStr,
+                              rawPaymentType: paymentMethod.phonePay ? 'PhonePay' : 'Cash',
+                              date: nepaliDate,
+                              time: nepaliTime,
+                              monthKey: monthKey,
+                              timestamp: now.getTime()
+                            };
+
+                            // Push to Firebase
+                            db.ref('transactions').push(transaction)
+                              .then(() => {
+                                setSyncStatus('synced');
+                                setDescription('');
+                                setAmount('');
+                                setPaymentMethod({ phonePay: false, cash: false });
+                                setPhonePayOption('Nabil');
+                              })
+                              .catch(error => {
+                                console.error('Error adding transaction:', error);
+                                setSyncStatus('error');
+                                alert('Failed to save transaction. Please try again.');
+                              });
+                          };
+
+                          const openEditModal = (transaction) => {
+                            setEditingTransaction(transaction);
+                            setEditDescription(transaction.description);
+                            setEditAmount(transaction.amount.toString());
+                          };
+
+                          const closeEditModal = () => {
+                            setEditingTransaction(null);
+                            setEditDescription('');
+                            setEditAmount('');
+                          };
+
+                          const saveEdit = () => {
+                            if (!editDescription || !editAmount || parseFloat(editAmount) <= 0) {
+                              alert('Please enter valid description and amount!');
+                              return;
+                            }
+
+                            setSyncStatus('syncing');
+                            const amountValue = roundAmount(editAmount);
+
+                            db.ref(`transactions/${editingTransaction.id}`).update({
+                              description: editDescription,
+                              amount: amountValue
+                            })
+                              .then(() => {
+                                setSyncStatus('synced');
+                                closeEditModal();
+                              })
+                              .catch(error => {
+                                console.error('Error updating transaction:', error);
+                                setSyncStatus('error');
+                                alert('Failed to update transaction. Please try again.');
+                              });
+                          };
+
+                          const deleteTransaction = (id) => {
+                            if (confirm('Are you sure you want to delete this transaction?')) {
+                              setSyncStatus('syncing');
+                              db.ref(`transactions/${id}`).remove()
+                                .then(() => setSyncStatus('synced'))
+                                .catch(error => {
+                                  console.error('Error deleting transaction:', error);
+                                  setSyncStatus('error');
+                                  alert('Failed to delete transaction. Please try again.');
+                                });
+                            }
+                          };
+
+                          // Savings Goals Functions
+                          const addSavingsGoal = () => {
+                            if (!newGoalName || !newGoalTarget || parseFloat(newGoalTarget) <= 0) {
+                              alert('Please enter valid goal name and target amount!');
+                              return;
+                            }
+
+                            setSyncStatus('syncing');
+                            const targetValue = roundAmount(newGoalTarget);
+
+                            const goal = {
+                              name: newGoalName,
+                              target: targetValue,
+                              current: 0
+                            };
+
+                            db.ref('savingsGoals').push(goal)
+                              .then(() => {
+                                setSyncStatus('synced');
+                                setNewGoalName('');
+                                setNewGoalTarget('');
+                              })
+                              .catch(error => {
+                                console.error('Error adding goal:', error);
+                                setSyncStatus('error');
+                                alert('Failed to add goal. Please try again.');
+                              });
+                          };
+
+                          const contributeToGoal = (goalId) => {
+                            const amount = parseFloat(contributeAmounts[goalId] || 0);
+                            if (amount <= 0) {
+                              alert('Please enter a valid amount!');
+                              return;
+                            }
+
+                            setSyncStatus('syncing');
+                            const contributionValue = roundAmount(amount);
+                            const goal = savingsGoals.find(g => g.id === goalId);
+                            
+                            if (goal) {
+                              const newCurrent = roundAmount(Math.min(goal.current + contributionValue, goal.target));
+                              
+                              db.ref(`savingsGoals/${goalId}`).update({
+                                current: newCurrent
+                              })
+                                .then(() => {
+                                  setSyncStatus('synced');
+                                  setContributeAmounts({ ...contributeAmounts, [goalId]: '' });
+                                })
+                                .catch(error => {
+                                  console.error('Error contributing to goal:', error);
+                                  setSyncStatus('error');
+                                  alert('Failed to contribute. Please try again.');
+                                });
+                            }
+                          };
+
+                          const deleteGoal = (goalId) => {
+                            if (confirm('Are you sure you want to delete this goal?')) {
+                              setSyncStatus('syncing');
+                              db.ref(`savingsGoals/${goalId}`).remove()
+                                .then(() => setSyncStatus('synced'))
+                                .catch(error => {
+                                  console.error('Error deleting goal:', error);
+                                  setSyncStatus('error');
+                                  alert('Failed to delete goal. Please try again.');
+                                });
+                            }
+                          };
+
+                          const availableMonths = [...new Set(transactions.map(t => t.monthKey))].sort().reverse();
+                          
+                          const filteredTransactions = selectedMonth === 'all' 
+                            ? transactions 
+                            : transactions.filter(t => t.monthKey === selectedMonth);
+
+                          const totalIncome = filteredTransactions
+                            .filter(t => t.type === 'income')
+                            .reduce((sum, t) => sum + t.amount, 0);
+
+                          const totalExpense = filteredTransactions
+                            .filter(t => t.type === 'expense')
+                            .reduce((sum, t) => sum + t.amount, 0);
+
+                          const expensePhonePay = filteredTransactions
+                            .filter(t => t.type === 'expense' && t.rawPaymentType === 'PhonePay')
+                            .reduce((sum, t) => sum + t.amount, 0);
+
+                          const expenseCash = filteredTransactions
+                            .filter(t => t.type === 'expense' && t.rawPaymentType === 'Cash')
+                            .reduce((sum, t) => sum + t.amount, 0);
+
+                          const balance = totalIncome - totalExpense;
+
+                          const getMonthLabel = (monthKey) => {
+                            const [year, month] = monthKey.split('-');
+                            const nepaliMonthName = nepaliMonths[parseInt(month) - 1];
+                            return `${nepaliMonthName} ${year}`;
+                          };
+
+                          if (!isLoggedIn) {
+                            return (
+                              <>
+                                <div className="bg-pattern"></div>
+                                <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+                                <div className="login-container">
+                                  <div className="login-box">
+                                    <h1 className="login-title">कति खर्च त?</h1>
+                                    
+                                    <div className="mode-selector">
+                                      <div className="mode-option">
+                                        <input
+                                          type="radio"
+                                          id="tracker-mode"
+                                          name="mode"
+                                          value="tracker"
+                                          checked={selectedMode === 'tracker'}
+                                          onChange={(e) => setSelectedMode(e.target.value)}
+                                        />
+                                        <label htmlFor="tracker-mode" className="mode-label">
+                                          💰 Money Tracker
+                                        </label>
+                                      </div>
+                                      <div className="mode-option">
+                                        <input
+                                          type="radio"
+                                          id="savings-mode"
+                                          name="mode"
+                                          value="savings"
+                                          checked={selectedMode === 'savings'}
+                                          onChange={(e) => setSelectedMode(e.target.value)}
+                                        />
+                                        <label htmlFor="savings-mode" className="mode-label">
+                                          🎯 Savings Goals
+                                        </label>
+                                      </div>
+                                    </div>
+                                    
+                                    <form onSubmit={handleLogin}>
+                                      <div className="input-group">
+                                        <label className="input-label">Username</label>
+                                        <input
+                                          type="text"
+                                          className="input-field"
+                                          value={username}
+                                          onChange={(e) => setUsername(e.target.value)}
+                                          placeholder="Enter username"
+                                        />
+                                      </div>
+                                      <div className="input-group">
+                                        <label className="input-label">PIN</label>
+                                        <input
+                                          type="password"
+                                          className="input-field"
+                                          value={pin}
+                                          onChange={(e) => setPin(e.target.value)}
+                                          placeholder="Enter PIN"
+                                        />
+                                      </div>
+                                      <button type="submit" className="login-btn">
+                                        Login
+                                      </button>
+                                      {error && <div className="error-msg">{error}</div>}
+                                    </form>
+                                  </div>
+                                </div>
+                              </>
+                            );
+                          }
+
+                          if (currentPage === 'savings') {
+                            return (
+                              <>
+                                <div className="bg-pattern"></div>
+                                <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+                                <SyncStatus status={syncStatus} />
+                                <div className="app-container">
+                                  <div className="app-header">
+                                    <div className="header-actions">
+                                      <button className="nav-btn" onClick={() => switchPage('tracker')}>
+                                        💰 Money Tracker
+                                      </button>
+                                      <button className="logout-btn" onClick={handleLogout}>
+                                        Logout
+                                      </button>
+                                    </div>
+                                    <h1 className="app-title">Savings Goals 🎯</h1>
+                                  </div>
+
+                                  <div className="main-content">
+                                    <div className="savings-goals-section">
+                                      <h2 className="section-title">Your Savings Goals</h2>
+                                      
+                                      <div className="goal-input-group">
+                                        <input
+                                          type="text"
+                                          className="text-input"
+                                          value={newGoalName}
+                                          onChange={(e) => setNewGoalName(e.target.value)}
+                                          placeholder="Goal name (e.g., New Phone)"
+                                        />
+                                        <input
+                                          type="number"
+                                          className="text-input"
+                                          value={newGoalTarget}
+                                          onChange={(e) => setNewGoalTarget(e.target.value)}
+                                          placeholder="Target amount (Rs)"
+                                          step="0.01"
+                                          min="0"
+                                        />
+                                      </div>
+                                      
+                                      <button className="add-goal-btn" onClick={addSavingsGoal}>
+                                        + Add New Goal
+                                      </button>
+
+                                      <div className="goals-list">
+                                        {savingsGoals.length === 0 ? (
+                                          <div className="empty-state">
+                                            No savings goals yet. Create your first one above!
+                                          </div>
+                                        ) : (
+                                          savingsGoals.map(goal => {
+                                            const progress = (goal.current / goal.target) * 100;
+                                            return (
+                                              <div key={goal.id} className="goal-card">
+                                                <div className="goal-header">
+                                                  <span className="goal-name">{goal.name}</span>
+                                                  <span className="goal-target">Rs {goal.target.toFixed(2)}</span>
+                                                </div>
+                                                
+                                                <div className="progress-container">
+                                                  <div className="progress-bar-bg">
+                                                    <div 
+                                                      className="progress-bar-fill" 
+                                                      style={{ width: `${Math.min(progress, 100)}%` }}
+                                                    ></div>
+                                                  </div>
+                                                  <div className="progress-text">
+                                                    Rs {goal.current.toFixed(2)} / Rs {goal.target.toFixed(2)} ({progress.toFixed(1)}%)
+                                                  </div>
+                                                </div>
+
+                                                <div className="goal-actions">
+                                                  <input
+                                                    type="number"
+                                                    className="contribute-input"
+                                                    value={contributeAmounts[goal.id] || ''}
+                                                    onChange={(e) => setContributeAmounts({ 
+                                                      ...contributeAmounts, 
+                                                      [goal.id]: e.target.value 
+                                                    })}
+                                                    placeholder="Contribute amount"
+                                                    step="0.01"
+                                                    min="0"
+                                                  />
+                                                  <button 
+                                                    className="contribute-btn"
+                                                    onClick={() => contributeToGoal(goal.id)}
+                                                  >
+                                                    Add
+                                                  </button>
+                                                  <button 
+                                                    className="delete-goal-btn"
+                                                    onClick={() => deleteGoal(goal.id)}
+                                                  >
+                                                    Delete
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            );
+                                          })
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </>
+                            );
+                          }
+
+                          return (
+                            <>
+                              <div className="bg-pattern"></div>
+                              <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+                              <SyncStatus status={syncStatus} />
+                              <div className="app-container">
+                                <div className="app-header">
+                                  <div className="header-actions">
+                                    <button className="nav-btn" onClick={() => switchPage('savings')}>
+                                      🎯 Savings Goals
+                                    </button>
+                                    <button className="logout-btn" onClick={handleLogout}>
+                                      Logout
+                                    </button>
+                                  </div>
+                                  <h1 className="app-title">कति खर्च त?</h1>
+                                </div>
+
+                                <div className="main-content">
+                                  <div className="balance-card">
+                                    <img 
+                                      src="money-bg.png" 
+                                      alt="Balance Background" 
+                                      className="balance-bg-image"
+                                    />
+                                    <div className="balance-content">
+                                      <div className="balance-label">Current Balance</div>
+                                      <div className="balance-amount">Rs {balance.toFixed(2)}</div>
+                                    </div>
+                                  </div>
+
+                                  <div className="summary-grid">
+                                    <div className="summary-card expense">
+                                      <div className="summary-label">Total Expenses</div>
+                                      <div className="summary-amount">Rs {totalExpense.toFixed(2)}</div>
+                                      <div className="payment-breakdown">
+                                        <div className="payment-item">
+                                          <span>PhonePay:</span>
+                                          <span>Rs {expensePhonePay.toFixed(2)}</span>
+                                        </div>
+                                        <div className="payment-item">
+                                          <span>Cash:</span>
+                                          <span>Rs {expenseCash.toFixed(2)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="summary-card income">
+                                      <div className="summary-label">Total Income</div>
+                                      <div className="summary-amount">Rs {totalIncome.toFixed(2)}</div>
+                                    </div>
+                                  </div>
+
+                                  <div className="input-section">
+                                    <div className="form-group">
+                                      <label className="form-label">Description</label>
+                                      <input
+                                        type="text"
+                                        className="text-input"
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        placeholder="k ma kharcha vayo tah?"
+                                      />
+                                    </div>
+
+                                    <div className="form-group">
+                                      <label className="form-label">Payment Method</label>
+                                      <div className="payment-options">
+                                        <div className="checkbox-card">
+                                          <input
+                                            type="checkbox"
+                                            id="phonepay"
+                                            checked={paymentMethod.phonePay}
+                                            onChange={() => handlePaymentMethodChange('phonePay')}
+                                          />
+                                          <label htmlFor="phonepay" className="checkbox-label">
+                                            PhonePay
+                                          </label>
+                                        </div>
+                                        <div className="checkbox-card">
+                                          <input
+                                            type="checkbox"
+                                            id="cash"
+                                            checked={paymentMethod.cash}
+                                            onChange={() => handlePaymentMethodChange('cash')}
+                                          />
+                                          <label htmlFor="cash" className="checkbox-label">
+                                            Cash
+                                          </label>
+                                        </div>
+                                      </div>
+
+                                      {paymentMethod.phonePay && (
+                                        <div className="sub-options">
+                                          <div className="sub-options-title">Select Bank/Wallet</div>
+                                          <div className="radio-group">
+                                            <div className="radio-option">
+                                              <input
+                                                type="radio"
+                                                id="nabil"
+                                                name="phonePayOption"
+                                                value="Nabil"
+                                                checked={phonePayOption === 'Nabil'}
+                                                onChange={(e) => setPhonePayOption(e.target.value)}
+                                              />
+                                              <label htmlFor="nabil">Nabil Bank</label>
+                                            </div>
+                                            <div className="radio-option">
+                                              <input
+                                                type="radio"
+                                                id="citizens"
+                                                name="phonePayOption"
+                                                value="Citizens"
+                                                checked={phonePayOption === 'Citizens'}
+                                                onChange={(e) => setPhonePayOption(e.target.value)}
+                                              />
+                                              <label htmlFor="citizens">Citizens Bank</label>
+                                            </div>
+                                            <div className="radio-option">
+                                              <input
+                                                type="radio"
+                                                id="esewa"
+                                                name="phonePayOption"
+                                                value="Esewa"
+                                                checked={phonePayOption === 'Esewa'}
+                                                onChange={(e) => setPhonePayOption(e.target.value)}
+                                              />
+                                              <label htmlFor="esewa">Esewa</label>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div className="form-group">
+                                      <label className="form-label">Amount (Rs)</label>
+                                      <input
+                                        type="number"
+                                        className="text-input"
+                                        value={amount}
+                                        onChange={(e) => setAmount(e.target.value)}
+                                        placeholder="0.00"
+                                        step="0.01"
+                                        min="0"
+                                      />
+                                    </div>
+
+                                    <div className="action-buttons">
+                                      <button className="action-btn btn-expense" onClick={() => addTransaction('expense')}>
+                                        - Add Expense
+                                      </button>
+                                      <button className="action-btn btn-income" onClick={() => addTransaction('income')}>
+                                        + Add Income
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {availableMonths.length > 0 && (
+                                    <div className="month-filter">
+                                      <div className="filter-label">Filter by Month</div>
+                                      <select 
+                                        className="month-select"
+                                        value={selectedMonth}
+                                        onChange={(e) => setSelectedMonth(e.target.value)}
+                                      >
+                                        <option value="all">All Months</option>
+                                        {availableMonths.map(monthKey => (
+                                          <option key={monthKey} value={monthKey}>
+                                            {getMonthLabel(monthKey)}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
+
+                                  <div className="transactions-section">
+                                    <h2 className="transactions-title">
+                                      {selectedMonth === 'all' ? 'All Transactions' : `${getMonthLabel(selectedMonth)} Transactions`}
+                                    </h2>
+                                    <div className="transaction-list">
+                                      {filteredTransactions.length === 0 ? (
+                                        <div className="empty-state">
+                                          {selectedMonth === 'all' 
+                                            ? 'No transactions yet. Add your first one above!' 
+                                            : 'No transactions for this month.'}
+                                        </div>
+                                      ) : (
+                                        filteredTransactions.map((t) => (
+                                          <div key={t.id} className={`transaction-item ${t.type}`}>
+                                            <div className="transaction-details">
+                                              <div className="transaction-desc">{t.description}</div>
+                                              <div className="transaction-meta">
+                                                {t.paymentMethod} • {t.date} • {t.time}
+                                              </div>
+                                            </div>
+                                            <div className="transaction-amount">
+                                              {t.type === 'income' ? '+' : '-'}Rs {t.amount.toFixed(2)}
+                                            </div>
+                                            <div className="transaction-actions">
+                                              <button className="edit-btn" onClick={() => openEditModal(t)}>
+                                                Edit
+                                              </button>
+                                              <button className="delete-btn" onClick={() => deleteTransaction(t.id)}>
+                                                Delete
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {editingTransaction && (
+                                <div className="modal-overlay" onClick={closeEditModal}>
+                                  <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                                    <h2 className="modal-title">Edit Transaction</h2>
+                                    
+                                    <div className="form-group">
+                                      <label className="form-label">Description</label>
+                                      <input
+                                        type="text"
+                                        className="text-input"
+                                        value={editDescription}
+                                        onChange={(e) => setEditDescription(e.target.value)}
+                                        placeholder="Enter description"
+                                      />
+                                    </div>
+
+                                    <div className="form-group">
+                                      <label className="form-label">Amount (Rs)</label>
+                                      <input
+                                        type="number"
+                                        className="text-input"
+                                        value={editAmount}
+                                        onChange={(e) => setEditAmount(e.target.value)}
+                                        placeholder="0.00"
+                                        step="0.01"
+                                        min="0"
+                                      />
+                                    </div>
+
+                                    <div className="modal-buttons">
+                                      <button className="modal-btn modal-btn-save" onClick={saveEdit}>
+                                        Save Changes
+                                      </button>
+                                      <button className="modal-btn modal-btn-cancel" onClick={closeEditModal}>
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        }
+
+                        ReactDOM.render(<App />, document.getElementById('root'));
+                      </script>
+                    </body>
+                    </html>

@@ -1462,6 +1462,52 @@
       return username.replace(/[.#$[\]]/g, '_');
     }
 
+    // ====== DATA MIGRATION FUNCTION ======
+    async function migrateOldDataToUserPath(username) {
+      const sanitizedUsername = sanitizeUsername(username);
+      console.log(`Checking for old data migration for user: ${username}`);
+      
+      try {
+        // Check if user already has data in new path
+        const userDataSnapshot = await db.ref(`users/${sanitizedUsername}/transactions`).once('value');
+        const hasNewData = userDataSnapshot.exists();
+        
+        // Check if old data exists
+        const oldDataSnapshot = await db.ref('transactions').once('value');
+        const hasOldData = oldDataSnapshot.exists();
+        
+        if (hasOldData && !hasNewData) {
+          console.log('Found old data, migrating to user-specific path...');
+          
+          // Get old transactions
+          const oldTransactions = oldDataSnapshot.val();
+          
+          // Copy to new user-specific path
+          await db.ref(`users/${sanitizedUsername}/transactions`).set(oldTransactions);
+          console.log('Transactions migrated successfully!');
+          
+          // Also migrate savings goals if they exist
+          const oldGoalsSnapshot = await db.ref('savingsGoals').once('value');
+          if (oldGoalsSnapshot.exists()) {
+            const oldGoals = oldGoalsSnapshot.val();
+            await db.ref(`users/${sanitizedUsername}/savingsGoals`).set(oldGoals);
+            console.log('Savings goals migrated successfully!');
+          }
+          
+          return true;
+        } else if (hasNewData) {
+          console.log('User already has data in new path, no migration needed');
+        } else {
+          console.log('No old data found to migrate');
+        }
+        
+        return false;
+      } catch (error) {
+        console.error('Error during migration:', error);
+        return false;
+      }
+    }
+
     // Nepali Date Converter
     const nepaliMonths = [
       'Baisakh', 'Jestha', 'Asadh', 'Shrawan', 'Bhadra', 'Ashwin',
@@ -1611,39 +1657,46 @@
           setSyncStatus('syncing');
           const sanitizedUsername = sanitizeUsername(username);
 
-          // Listen to user-specific transactions
-          transactionsRef.current = db.ref(`users/${sanitizedUsername}/transactions`);
-          transactionsRef.current.on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-              const transactionsArray = Object.keys(data).map(key => ({
-                ...data[key],
-                id: key
-              }));
-              setTransactions(transactionsArray.sort((a, b) => b.timestamp - a.timestamp));
-              setSyncStatus('synced');
-            } else {
-              setTransactions([]);
-              setSyncStatus('synced');
+          // First, try to migrate old data
+          migrateOldDataToUserPath(username).then((migrated) => {
+            if (migrated) {
+              console.log('Migration completed, setting up listeners...');
             }
-          }, (error) => {
-            console.error('Firebase read error:', error);
-            setSyncStatus('error');
-          });
+            
+            // Listen to user-specific transactions
+            transactionsRef.current = db.ref(`users/${sanitizedUsername}/transactions`);
+            transactionsRef.current.on('value', (snapshot) => {
+              const data = snapshot.val();
+              if (data) {
+                const transactionsArray = Object.keys(data).map(key => ({
+                  ...data[key],
+                  id: key
+                }));
+                setTransactions(transactionsArray.sort((a, b) => b.timestamp - a.timestamp));
+                setSyncStatus('synced');
+              } else {
+                setTransactions([]);
+                setSyncStatus('synced');
+              }
+            }, (error) => {
+              console.error('Firebase read error:', error);
+              setSyncStatus('error');
+            });
 
-          // Listen to user-specific savings goals
-          goalsRef.current = db.ref(`users/${sanitizedUsername}/savingsGoals`);
-          goalsRef.current.on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-              const goalsArray = Object.keys(data).map(key => ({
-                ...data[key],
-                id: key
-              }));
-              setSavingsGoals(goalsArray);
-            } else {
-              setSavingsGoals([]);
-            }
+            // Listen to user-specific savings goals
+            goalsRef.current = db.ref(`users/${sanitizedUsername}/savingsGoals`);
+            goalsRef.current.on('value', (snapshot) => {
+              const data = snapshot.val();
+              if (data) {
+                const goalsArray = Object.keys(data).map(key => ({
+                  ...data[key],
+                  id: key
+                }));
+                setSavingsGoals(goalsArray);
+              } else {
+                setSavingsGoals([]);
+              }
+            });
           });
 
           return () => {

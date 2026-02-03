@@ -1456,6 +1456,12 @@
       return Math.round(parseFloat(value) * 100) / 100;
     }
 
+    // ====== SANITIZE USERNAME FOR FIREBASE ======
+    function sanitizeUsername(username) {
+      // Replace characters that are not allowed in Firebase keys
+      return username.replace(/[.#$[\]]/g, '_');
+    }
+
     // Nepali Date Converter
     const nepaliMonths = [
       'Baisakh', 'Jestha', 'Asadh', 'Shrawan', 'Bhadra', 'Ashwin',
@@ -1601,11 +1607,12 @@
 
       // Initialize Firebase listeners
       useEffect(() => {
-        if (isLoggedIn && db) {
+        if (isLoggedIn && db && username) {
           setSyncStatus('syncing');
+          const sanitizedUsername = sanitizeUsername(username);
 
-          // Listen to transactions
-          transactionsRef.current = db.ref('transactions');
+          // Listen to user-specific transactions
+          transactionsRef.current = db.ref(`users/${sanitizedUsername}/transactions`);
           transactionsRef.current.on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -1624,8 +1631,8 @@
             setSyncStatus('error');
           });
 
-          // Listen to savings goals
-          goalsRef.current = db.ref('savingsGoals');
+          // Listen to user-specific savings goals
+          goalsRef.current = db.ref(`users/${sanitizedUsername}/savingsGoals`);
           goalsRef.current.on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -1644,7 +1651,7 @@
             if (goalsRef.current) goalsRef.current.off();
           };
         }
-      }, [isLoggedIn]);
+      }, [isLoggedIn, username]);
 
       useEffect(() => {
         const loggedIn = localStorage.getItem('isLoggedIn');
@@ -1863,8 +1870,9 @@
           timestamp: now.getTime()
         };
 
-        // Push to Firebase
-        db.ref('transactions').push(transaction)
+        // Push to user-specific Firebase path
+        const sanitizedUsername = sanitizeUsername(username);
+        db.ref(`users/${sanitizedUsername}/transactions`).push(transaction)
           .then(() => {
             setSyncStatus('synced');
             setDescription('');
@@ -1901,8 +1909,9 @@
 
         setSyncStatus('syncing');
         const amountValue = roundAmount(editAmount);
+        const sanitizedUsername = sanitizeUsername(username);
 
-        db.ref(`transactions/${editingTransaction.id}`).update({
+        db.ref(`users/${sanitizedUsername}/transactions/${editingTransaction.id}`).update({
           description: editDescription,
           amount: amountValue
         })
@@ -1920,7 +1929,8 @@
       const deleteTransaction = (id) => {
         if (confirm('Are you sure you want to delete this transaction?')) {
           setSyncStatus('syncing');
-          db.ref(`transactions/${id}`).remove()
+          const sanitizedUsername = sanitizeUsername(username);
+          db.ref(`users/${sanitizedUsername}/transactions/${id}`).remove()
             .then(() => setSyncStatus('synced'))
             .catch(error => {
               console.error('Error deleting transaction:', error);
@@ -1946,7 +1956,8 @@
           current: 0
         };
 
-        db.ref('savingsGoals').push(goal)
+        const sanitizedUsername = sanitizeUsername(username);
+        db.ref(`users/${sanitizedUsername}/savingsGoals`).push(goal)
           .then(() => {
             setSyncStatus('synced');
             setNewGoalName('');
@@ -1972,8 +1983,9 @@
 
         if (goal) {
           const newCurrent = roundAmount(Math.min(goal.current + contributionValue, goal.target));
+          const sanitizedUsername = sanitizeUsername(username);
 
-          db.ref(`savingsGoals/${goalId}`).update({
+          db.ref(`users/${sanitizedUsername}/savingsGoals/${goalId}`).update({
             current: newCurrent
           })
             .then(() => {
@@ -1991,7 +2003,8 @@
       const deleteGoal = (goalId) => {
         if (confirm('Are you sure you want to delete this goal?')) {
           setSyncStatus('syncing');
-          db.ref(`savingsGoals/${goalId}`).remove()
+          const sanitizedUsername = sanitizeUsername(username);
+          db.ref(`users/${sanitizedUsername}/savingsGoals/${goalId}`).remove()
             .then(() => setSyncStatus('synced'))
             .catch(error => {
               console.error('Error deleting goal:', error);

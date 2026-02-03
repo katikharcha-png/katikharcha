@@ -61,7 +61,7 @@
     /* Sync Status Indicator */
     .sync-status {
       position: fixed;
-      top: 20px;
+      top: 100px;
       right: 20px;
       z-index: 100;
       display: flex;
@@ -292,6 +292,26 @@
       transform: translateY(0);
     }
 
+    .toggle-mode-btn {
+      width: 100%;
+      padding: 12px;
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 20px;
+    }
+
+    .toggle-mode-btn:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+      transform: translateY(-2px);
+    }
+
     .error-msg {
       background: rgba(255, 50, 100, 0.2);
       border: 1px solid var(--accent-red);
@@ -302,6 +322,18 @@
       font-size: 14px;
       color: #ff6464;
       animation: shake 0.3s ease;
+    }
+
+    .success-msg {
+      background: rgba(150, 255, 50, 0.2);
+      border: 1px solid var(--accent-green);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 20px;
+      text-align: center;
+      font-size: 14px;
+      color: var(--accent-green);
+      animation: slideUp 0.3s ease;
     }
 
     @keyframes shake {
@@ -1220,8 +1252,10 @@
       }
 
       .sync-status {
-        top: 70px;
+        top: 10px;
         right: 10px;
+        font-size: 10px;
+        padding: 6px 12px;
       }
 
       .summary-grid {
@@ -1273,7 +1307,6 @@
     const { useState, useEffect, useRef } = React;
 
     // ========== FIREBASE CONFIGURATION ==========
-    // TODO: Replace with your Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyCrROdu2fsEV33IuQ7vK-1CeEGAsbAlGBU",
       authDomain: "katikharcha.firebaseapp.com",
@@ -1403,8 +1436,10 @@
       const [username, setUsername] = useState('');
       const [pin, setPin] = useState('');
       const [error, setError] = useState('');
+      const [success, setSuccess] = useState('');
       const [theme, setTheme] = useState('dark');
       const [syncStatus, setSyncStatus] = useState('offline');
+      const [isRegistering, setIsRegistering] = useState(false);
 
       const [transactions, setTransactions] = useState([]);
       const [description, setDescription] = useState('');
@@ -1477,11 +1512,13 @@
 
       useEffect(() => {
         const loggedIn = localStorage.getItem('isLoggedIn');
+        const savedUsername = localStorage.getItem('currentUser');
         const savedMode = localStorage.getItem('selectedMode');
         const savedTheme = localStorage.getItem('theme');
 
-        if (loggedIn === 'true') {
+        if (loggedIn === 'true' && savedUsername) {
           setIsLoggedIn(true);
+          setUsername(savedUsername);
           setCurrentPage(savedMode || 'tracker');
           setSelectedMode(savedMode || 'tracker');
         }
@@ -1499,14 +1536,64 @@
         document.documentElement.setAttribute('data-theme', newTheme);
       };
 
+      const handleRegister = (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+
+        if (!username || !pin) {
+          setError('Please fill in all fields!');
+          return;
+        }
+
+        if (pin.length < 4) {
+          setError('PIN must be at least 4 digits!');
+          return;
+        }
+
+        // Check if user already exists
+        const users = JSON.parse(localStorage.getItem('users') || '{}');
+        if (users[username]) {
+          setError('Username already exists!');
+          return;
+        }
+
+        // Save new user
+        users[username] = pin;
+        localStorage.setItem('users', JSON.stringify(users));
+        
+        setSuccess('Registration successful! Please login.');
+        setUsername('');
+        setPin('');
+        
+        setTimeout(() => {
+          setIsRegistering(false);
+          setSuccess('');
+        }, 2000);
+      };
+
       const handleLogin = (e) => {
         e.preventDefault();
+        setError('');
+
+        // Check default admin account
         if (username === '12345666' && pin === '7536') {
           setIsLoggedIn(true);
           localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('currentUser', username);
           localStorage.setItem('selectedMode', selectedMode);
           setCurrentPage(selectedMode);
-          setError('');
+          return;
+        }
+
+        // Check registered users
+        const users = JSON.parse(localStorage.getItem('users') || '{}');
+        if (users[username] && users[username] === pin) {
+          setIsLoggedIn(true);
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('currentUser', username);
+          localStorage.setItem('selectedMode', selectedMode);
+          setCurrentPage(selectedMode);
         } else {
           setError('Invalid username or PIN!');
         }
@@ -1515,6 +1602,7 @@
       const handleLogout = () => {
         setIsLoggedIn(false);
         localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('currentUser');
         setCurrentPage('login');
         setUsername('');
         setPin('');
@@ -1777,7 +1865,7 @@
                   </div>
                 </div>
 
-                <form onSubmit={handleLogin}>
+                <form onSubmit={isRegistering ? handleRegister : handleLogin}>
                   <div className="input-group">
                     <label className="input-label">Username</label>
                     <input
@@ -1799,10 +1887,24 @@
                     />
                   </div>
                   <button type="submit" className="login-btn">
-                    Login
+                    {isRegistering ? 'Register' : 'Login'}
                   </button>
                   {error && <div className="error-msg">{error}</div>}
+                  {success && <div className="success-msg">{success}</div>}
                 </form>
+
+                <button 
+                  className="toggle-mode-btn" 
+                  onClick={() => {
+                    setIsRegistering(!isRegistering);
+                    setError('');
+                    setSuccess('');
+                    setUsername('');
+                    setPin('');
+                  }}
+                >
+                  {isRegistering ? '← Back to Login' : '+ Create New Account'}
+                </button>
               </div>
             </div>
           </>

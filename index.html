@@ -168,6 +168,22 @@
       max-width: 420px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
       animation: slideUp 0.6s ease;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .login-box::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .login-box::-webkit-scrollbar-track {
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+    }
+
+    .login-box::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, #ff3264, #50d2ff);
+      border-radius: 10px;
     }
 
     @keyframes slideUp {
@@ -265,6 +281,102 @@
       border-color: var(--accent-red);
       background: rgba(255, 50, 100, 0.1);
       box-shadow: 0 0 20px rgba(255, 50, 100, 0.3);
+    }
+
+    .banking-apps-section {
+      margin-bottom: 25px;
+    }
+
+    .banking-apps-label {
+      display: block;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 15px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .banking-apps-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .banking-app-checkbox {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .banking-app-checkbox input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+    }
+
+    .banking-app-label {
+      display: block;
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 13px;
+      transition: all 0.3s ease;
+    }
+
+    .banking-app-checkbox input[type="checkbox"]:checked+.banking-app-label {
+      background: rgba(96, 255, 50, 0.2);
+      border-color: var(--accent-green);
+      box-shadow: 0 0 15px rgba(96, 255, 50, 0.2);
+    }
+
+    .banking-app-checkbox:hover .banking-app-label {
+      border-color: var(--text-secondary);
+      transform: translateY(-2px);
+    }
+
+    .custom-app-input {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .custom-app-field {
+      flex: 1;
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: 'Outfit', sans-serif;
+      transition: all 0.3s ease;
+    }
+
+    .custom-app-field:focus {
+      outline: none;
+      border-color: var(--accent-green);
+      background: rgba(96, 255, 50, 0.1);
+    }
+
+    .add-custom-btn {
+      padding: 12px 20px;
+      background: rgba(96, 255, 50, 0.2);
+      border: 2px solid var(--accent-green);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .add-custom-btn:hover {
+      background: rgba(96, 255, 50, 0.3);
+      transform: scale(1.05);
     }
 
     .login-btn {
@@ -1296,6 +1408,18 @@
       .mode-selector {
         flex-direction: column;
       }
+
+      .banking-apps-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .custom-app-input {
+        flex-direction: column;
+      }
+
+      .add-custom-btn {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -1441,6 +1565,18 @@
       const [syncStatus, setSyncStatus] = useState('offline');
       const [isRegistering, setIsRegistering] = useState(false);
 
+      // Banking apps states
+      const [selectedBankingApps, setSelectedBankingApps] = useState({
+        'Nabil Bank': false,
+        'Citizens Bank': false,
+        'Esewa': false,
+        'Khalti': false,
+        'IME Pay': false,
+        'Fonepay': false
+      });
+      const [customApp, setCustomApp] = useState('');
+      const [userBankingApps, setUserBankingApps] = useState([]);
+
       const [transactions, setTransactions] = useState([]);
       const [description, setDescription] = useState('');
       const [amount, setAmount] = useState('');
@@ -1448,7 +1584,7 @@
         phonePay: false,
         cash: false
       });
-      const [phonePayOption, setPhonePayOption] = useState('Nabil');
+      const [phonePayOption, setPhonePayOption] = useState('');
       const [selectedMonth, setSelectedMonth] = useState('all');
 
       const [editingTransaction, setEditingTransaction] = useState(null);
@@ -1521,6 +1657,20 @@
           setUsername(savedUsername);
           setCurrentPage(savedMode || 'tracker');
           setSelectedMode(savedMode || 'tracker');
+
+          // Load user's banking apps
+          const users = JSON.parse(localStorage.getItem('users') || '{}');
+          if (users[savedUsername] && users[savedUsername].bankingApps) {
+            setUserBankingApps(users[savedUsername].bankingApps);
+            if (users[savedUsername].bankingApps.length > 0) {
+              setPhonePayOption(users[savedUsername].bankingApps[0]);
+            }
+          } else if (savedUsername === '12345666') {
+            // Default admin account apps
+            const defaultApps = ['Nabil Bank', 'Citizens Bank', 'Esewa'];
+            setUserBankingApps(defaultApps);
+            setPhonePayOption(defaultApps[0]);
+          }
         }
 
         if (savedTheme) {
@@ -1534,6 +1684,23 @@
         setTheme(newTheme);
         localStorage.setItem('theme', newTheme);
         document.documentElement.setAttribute('data-theme', newTheme);
+      };
+
+      const handleBankingAppToggle = (app) => {
+        setSelectedBankingApps(prev => ({
+          ...prev,
+          [app]: !prev[app]
+        }));
+      };
+
+      const addCustomBankingApp = () => {
+        if (customApp.trim()) {
+          setSelectedBankingApps(prev => ({
+            ...prev,
+            [customApp.trim()]: true
+          }));
+          setCustomApp('');
+        }
       };
 
       const handleRegister = (e) => {
@@ -1551,6 +1718,16 @@
           return;
         }
 
+        // Get selected banking apps
+        const selectedApps = Object.keys(selectedBankingApps).filter(
+          app => selectedBankingApps[app]
+        );
+
+        if (selectedApps.length === 0) {
+          setError('Please select at least one banking app!');
+          return;
+        }
+
         // Check if user already exists
         const users = JSON.parse(localStorage.getItem('users') || '{}');
         if (users[username]) {
@@ -1558,13 +1735,24 @@
           return;
         }
 
-        // Save new user
-        users[username] = pin;
+        // Save new user with banking apps
+        users[username] = {
+          pin: pin,
+          bankingApps: selectedApps
+        };
         localStorage.setItem('users', JSON.stringify(users));
         
         setSuccess('Registration successful! Please login.');
         setUsername('');
         setPin('');
+        setSelectedBankingApps({
+          'Nabil Bank': false,
+          'Citizens Bank': false,
+          'Esewa': false,
+          'Khalti': false,
+          'IME Pay': false,
+          'Fonepay': false
+        });
         
         setTimeout(() => {
           setIsRegistering(false);
@@ -1583,17 +1771,30 @@
           localStorage.setItem('currentUser', username);
           localStorage.setItem('selectedMode', selectedMode);
           setCurrentPage(selectedMode);
+          
+          // Set default banking apps for admin
+          const defaultApps = ['Nabil Bank', 'Citizens Bank', 'Esewa'];
+          setUserBankingApps(defaultApps);
+          setPhonePayOption(defaultApps[0]);
           return;
         }
 
         // Check registered users
         const users = JSON.parse(localStorage.getItem('users') || '{}');
-        if (users[username] && users[username] === pin) {
+        if (users[username] && users[username].pin === pin) {
           setIsLoggedIn(true);
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('currentUser', username);
           localStorage.setItem('selectedMode', selectedMode);
           setCurrentPage(selectedMode);
+          
+          // Load user's banking apps
+          if (users[username].bankingApps) {
+            setUserBankingApps(users[username].bankingApps);
+            if (users[username].bankingApps.length > 0) {
+              setPhonePayOption(users[username].bankingApps[0]);
+            }
+          }
         } else {
           setError('Invalid username or PIN!');
         }
@@ -1607,6 +1808,7 @@
         setUsername('');
         setPin('');
         setSyncStatus('offline');
+        setUserBankingApps([]);
       };
 
       const switchPage = (page) => {
@@ -1668,7 +1870,9 @@
             setDescription('');
             setAmount('');
             setPaymentMethod({ phonePay: false, cash: false });
-            setPhonePayOption('Nabil');
+            if (userBankingApps.length > 0) {
+              setPhonePayOption(userBankingApps[0]);
+            }
           })
           .catch(error => {
             console.error('Error adding transaction:', error);
@@ -1886,6 +2090,52 @@
                       placeholder="Enter PIN"
                     />
                   </div>
+
+                  {isRegistering && (
+                    <div className="banking-apps-section">
+                      <label className="banking-apps-label">
+                        Select Your Banking Apps
+                      </label>
+                      <div className="banking-apps-grid">
+                        {Object.keys(selectedBankingApps).map(app => (
+                          <div key={app} className="banking-app-checkbox">
+                            <input
+                              type="checkbox"
+                              id={app}
+                              checked={selectedBankingApps[app]}
+                              onChange={() => handleBankingAppToggle(app)}
+                            />
+                            <label htmlFor={app} className="banking-app-label">
+                              {app}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="custom-app-input">
+                        <input
+                          type="text"
+                          className="custom-app-field"
+                          value={customApp}
+                          onChange={(e) => setCustomApp(e.target.value)}
+                          placeholder="Add custom app..."
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addCustomBankingApp();
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="add-custom-btn"
+                          onClick={addCustomBankingApp}
+                        >
+                          + Add
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <button type="submit" className="login-btn">
                     {isRegistering ? 'Register' : 'Login'}
                   </button>
@@ -1901,6 +2151,14 @@
                     setSuccess('');
                     setUsername('');
                     setPin('');
+                    setSelectedBankingApps({
+                      'Nabil Bank': false,
+                      'Citizens Bank': false,
+                      'Esewa': false,
+                      'Khalti': false,
+                      'IME Pay': false,
+                      'Fonepay': false
+                    });
                   }}
                 >
                   {isRegistering ? '← Back to Login' : '+ Create New Account'}
@@ -2113,43 +2371,23 @@
                     </div>
                   </div>
 
-                  {paymentMethod.phonePay && (
+                  {paymentMethod.phonePay && userBankingApps.length > 0 && (
                     <div className="sub-options">
                       <div className="sub-options-title">Select Bank/Wallet</div>
                       <div className="radio-group">
-                        <div className="radio-option">
-                          <input
-                            type="radio"
-                            id="nabil"
-                            name="phonePayOption"
-                            value="Nabil"
-                            checked={phonePayOption === 'Nabil'}
-                            onChange={(e) => setPhonePayOption(e.target.value)}
-                          />
-                          <label htmlFor="nabil">Nabil Bank</label>
-                        </div>
-                        <div className="radio-option">
-                          <input
-                            type="radio"
-                            id="citizens"
-                            name="phonePayOption"
-                            value="Citizens"
-                            checked={phonePayOption === 'Citizens'}
-                            onChange={(e) => setPhonePayOption(e.target.value)}
-                          />
-                          <label htmlFor="citizens">Citizens Bank</label>
-                        </div>
-                        <div className="radio-option">
-                          <input
-                            type="radio"
-                            id="esewa"
-                            name="phonePayOption"
-                            value="Esewa"
-                            checked={phonePayOption === 'Esewa'}
-                            onChange={(e) => setPhonePayOption(e.target.value)}
-                          />
-                          <label htmlFor="esewa">Esewa</label>
-                        </div>
+                        {userBankingApps.map(app => (
+                          <div key={app} className="radio-option">
+                            <input
+                              type="radio"
+                              id={app}
+                              name="phonePayOption"
+                              value={app}
+                              checked={phonePayOption === app}
+                              onChange={(e) => setPhonePayOption(e.target.value)}
+                            />
+                            <label htmlFor={app}>{app}</label>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

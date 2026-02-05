@@ -1432,23 +1432,26 @@
 
     // ========== FIREBASE CONFIGURATION ==========
     const firebaseConfig = {
-        apiKey: "AIzaSyCrROdu2fsEV33IuQ7vK-1CeEGAsbAlGBU",
-  authDomain: "katikharcha.firebaseapp.com",
-  databaseURL: "https://katikharcha-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "katikharcha",
-  storageBucket: "katikharcha.firebasestorage.app",
-  messagingSenderId: "67110537209",
-  appId: "1:67110537209:web:2b2a5989628b1a55841f28"
+      apiKey: "AIzaSyCrROdu2fsEV33IuQ7vK-1CeEGAsbAlGBU",
+      authDomain: "katikharcha.firebaseapp.com",
+      databaseURL: "https://katikharcha-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "katikharcha",
+      storageBucket: "katikharcha.firebasestorage.app",
+      messagingSenderId: "67110537209",
+      appId: "1:67110537209:web:2b2a5989628b1a55841f28"
     };
 
     // Initialize Firebase
     let db;
+    let firebaseInitialized = false;
     try {
       firebase.initializeApp(firebaseConfig);
       db = firebase.database();
+      firebaseInitialized = true;
       console.log('Firebase initialized successfully');
     } catch (error) {
       console.error('Firebase initialization error:', error);
+      firebaseInitialized = false;
     }
 
     // ====== PRECISION FIX HELPER FUNCTION ======
@@ -1464,6 +1467,11 @@
 
     // ====== DATA MIGRATION FUNCTION ======
     async function migrateOldDataToUserPath(username) {
+      if (!db || !firebaseInitialized) {
+        console.log('Firebase not initialized, skipping migration');
+        return false;
+      }
+
       const sanitizedUsername = sanitizeUsername(username);
       console.log(`Checking for old data migration for user: ${username}`);
       
@@ -1653,7 +1661,7 @@
 
       // Initialize Firebase listeners
       useEffect(() => {
-        if (isLoggedIn && db && username) {
+        if (isLoggedIn && db && username && firebaseInitialized) {
           setSyncStatus('syncing');
           const sanitizedUsername = sanitizeUsername(username);
 
@@ -1696,13 +1704,21 @@
               } else {
                 setSavingsGoals([]);
               }
+            }, (error) => {
+              console.error('Firebase read error (goals):', error);
             });
+          }).catch((error) => {
+            console.error('Migration error:', error);
+            setSyncStatus('error');
           });
 
           return () => {
             if (transactionsRef.current) transactionsRef.current.off();
             if (goalsRef.current) goalsRef.current.off();
           };
+        } else if (!firebaseInitialized) {
+          setSyncStatus('error');
+          console.error('Firebase not initialized');
         }
       }, [isLoggedIn, username]);
 
@@ -1824,6 +1840,11 @@
         e.preventDefault();
         setError('');
 
+        if (!firebaseInitialized) {
+          setError('Firebase connection failed. Please refresh the page.');
+          return;
+        }
+
         // Check default admin account
         if (username === '12345666' && pin === '7536') {
           setIsLoggedIn(true);
@@ -1895,6 +1916,12 @@
           return;
         }
 
+        if (!db || !firebaseInitialized) {
+          alert('Firebase connection error. Please refresh the page.');
+          setSyncStatus('error');
+          return;
+        }
+
         setSyncStatus('syncing');
 
         const now = new Date();
@@ -1960,6 +1987,11 @@
           return;
         }
 
+        if (!db || !firebaseInitialized) {
+          alert('Firebase connection error. Please refresh the page.');
+          return;
+        }
+
         setSyncStatus('syncing');
         const amountValue = roundAmount(editAmount);
         const sanitizedUsername = sanitizeUsername(username);
@@ -1981,6 +2013,11 @@
 
       const deleteTransaction = (id) => {
         if (confirm('Are you sure you want to delete this transaction?')) {
+          if (!db || !firebaseInitialized) {
+            alert('Firebase connection error. Please refresh the page.');
+            return;
+          }
+
           setSyncStatus('syncing');
           const sanitizedUsername = sanitizeUsername(username);
           db.ref(`users/${sanitizedUsername}/transactions/${id}`).remove()
@@ -1997,6 +2034,11 @@
       const addSavingsGoal = () => {
         if (!newGoalName || !newGoalTarget || parseFloat(newGoalTarget) <= 0) {
           alert('Please enter valid goal name and target amount!');
+          return;
+        }
+
+        if (!db || !firebaseInitialized) {
+          alert('Firebase connection error. Please refresh the page.');
           return;
         }
 
@@ -2030,6 +2072,11 @@
           return;
         }
 
+        if (!db || !firebaseInitialized) {
+          alert('Firebase connection error. Please refresh the page.');
+          return;
+        }
+
         setSyncStatus('syncing');
         const contributionValue = roundAmount(amount);
         const goal = savingsGoals.find(g => g.id === goalId);
@@ -2055,6 +2102,11 @@
 
       const deleteGoal = (goalId) => {
         if (confirm('Are you sure you want to delete this goal?')) {
+          if (!db || !firebaseInitialized) {
+            alert('Firebase connection error. Please refresh the page.');
+            return;
+          }
+
           setSyncStatus('syncing');
           const sanitizedUsername = sanitizeUsername(username);
           db.ref(`users/${sanitizedUsername}/savingsGoals/${goalId}`).remove()
@@ -2366,11 +2418,6 @@
 
             <div className="main-content">
               <div className="balance-card">
-                <img
-                  src="money-bg.png"
-                  alt="Balance Background"
-                  className="balance-bg-image"
-                />
                 <div className="balance-content">
                   <div className="balance-label">Current Balance</div>
                   <div className="balance-amount">Rs {balance.toFixed(2)}</div>
@@ -2588,4 +2635,3 @@
 </body>
 
 </html>
-
